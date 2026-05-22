@@ -2,7 +2,7 @@
 ai_agent_simulation.py
 ======================
 
-Multi-Agent Autonomous Behaviour Simulation — Panda3D digital twin.
+Multi-Agent Autonomous Behaviour Simulation - Panda3D digital twin.
 
 A self-contained 3D simulation of multiple autonomous agents operating
 inside a procedurally generated digital-twin operations floor. Each
@@ -18,14 +18,14 @@ beacon, grid line, and obstacle is generated at runtime from
 Architecture
 ------------
 SimulationApplication (Panda3D ShowBase host)
-    ├── DigitalTwinEnvironment   procedural arena, obstacles, beacons
-    ├── Director                 activates beacons over time
-    └── Agent[]                  autonomous units
-            ├── Body             kinematic state (position, velocity)
-            ├── Sensor           FOV-cone + range perception
-            ├── Brain            FSM + blackboard memory
-            ├── Steering         Reynolds behaviour primitives
-            └── DebugDraw        live FOV / velocity overlays
+    |-- DigitalTwinEnvironment   procedural arena, obstacles, beacons
+    |-- Director                 activates beacons over time
+    `-- Agent[]                  autonomous units
+            |-- Body             kinematic state (position, velocity)
+            |-- Sensor           FOV-cone + range perception
+            |-- Brain            FSM + blackboard memory
+            |-- Steering         Reynolds behaviour primitives
+            `-- DebugDraw        live FOV / velocity overlays
 
 Design notes
 ------------
@@ -87,7 +87,7 @@ from panda3d.core import (
 loadPrcFileData(
     "",
     "\n".join((
-        "window-title Interactive AI Simulation — Autonomous Agents",
+        "window-title Interactive AI Simulation - Autonomous Agents",
         "win-size 1280 720",
         "sync-video true",
         "show-frame-rate-meter true",
@@ -195,7 +195,7 @@ class Obstacle:
     radius: float
 
     def contains_2d(self, point: Vec3, clearance: float) -> bool:
-        """Z-flat clearance test — XY distance only."""
+        """Z-flat clearance test - XY distance only."""
         dx = point.x - self.center.x
         dy = point.y - self.center.y
         threshold = self.radius + clearance
@@ -243,7 +243,7 @@ def _truncate(v: Vec3, max_length: float) -> Vec3:
 
 
 def _flatten(v: Vec3) -> Vec3:
-    """Project ``v`` onto the XY plane — steering math is 2D."""
+    """Project ``v`` onto the XY plane - steering math is 2D."""
     return Vec3(v.x, v.y, 0.0)
 
 
@@ -334,7 +334,7 @@ class Sensor:
     Field-of-view + range based perception.
 
     A beacon is perceived when distance < ``sight_range`` AND the angle
-    between the agent's heading and the agent→beacon ray is less than
+    between the agent's heading and the agent->beacon ray is less than
     half the FOV. Inactive beacons are filtered out at the source so the
     dot-product loop only ever sees real events.
     """
@@ -391,7 +391,7 @@ class Steering:
     """
     Reynolds-style steering primitives.
 
-    Each method returns a *force* — the acceleration that would push the
+    Each method returns a *force* - the acceleration that would push the
     agent toward the desired velocity in one tick. States combine these
     forces via weighted sums; the result is clamped by ``max_force``.
     """
@@ -425,7 +425,7 @@ class Steering:
 
     def wander(self, body: Body, blackboard: Blackboard,
                rng: random.Random) -> Vec3:
-        """Reynolds wander — smooth, plausibly aimless motion."""
+        """Reynolds wander - smooth, plausibly aimless motion."""
         blackboard.wander_target_angle += rng.uniform(
             -self.wander_jitter, self.wander_jitter,
         )
@@ -491,7 +491,7 @@ class Steering:
 
 
 # ---------------------------------------------------------------------------
-# Brain — FSM controller
+# Brain - FSM controller
 # ---------------------------------------------------------------------------
 class Brain:
     """
@@ -634,7 +634,7 @@ class Brain:
             )
 
         # Exhaustive over AgentState; this is a defensive fallthrough.
-        self._logger.error("unhandled state %s — resetting", self.state)
+        self._logger.error("unhandled state %s - resetting", self.state)
         self._enter_state(AgentState.IDLE, reason="defensive fallback")
         return Vec3(0, 0, 0)
 
@@ -662,7 +662,7 @@ class Agent:
         self.steering = Steering(cfg)
         self.brain = Brain(cfg, agent_name=self.name, rng=rng)
 
-        # Visual body — a small coloured prism.
+        # Visual body - a small coloured prism.
         self.node = create_box(
             name=f"{self.name}-body",
             half_extents=Vec3(0.22, 0.32, 0.30),
@@ -702,9 +702,9 @@ class Agent:
         clamped = environment.bounds.clamp(proposed)
         boundary_corrected = (clamped - proposed).length() > 1e-3
         if boundary_corrected:
-            # Drop the component of velocity that pushed us out — this
-            # is the principled fix for Codex's "abort whole state on
-            # boundary touch" bug: we *steer* not *teleport-back*.
+            # Drop the component of velocity that pushed us out - this
+            # preserves steering continuity at the arena edge: the agent
+            # corrects its motion vector instead of teleporting back.
             if abs(clamped.x - proposed.x) > 1e-4:
                 self.body.velocity.x *= -0.35
             if abs(clamped.y - proposed.y) > 1e-4:
@@ -716,7 +716,7 @@ class Agent:
             heading_deg = math.degrees(self.body.heading_radians) - 90.0
             self.node.setH(heading_deg)
 
-        # NavigationVector for telemetry — composed once per tick.
+        # NavigationVector for telemetry - composed once per tick.
         direction = Vec3(self.body.velocity)
         speed = direction.length()
         if speed > 1e-6:
@@ -758,7 +758,7 @@ class Agent:
             self.name, self.brain.state.value,
             self.body.position.x, self.body.position.y,
             self.body.speed,
-            bb.pursued_beacon or "—",
+            bb.pursued_beacon or "-",
         )
 
     # ------------------------------------------------------------------
@@ -779,7 +779,7 @@ class Agent:
             segs.drawTo(tip)
             self._velocity_arrow = self._debug_root.attachNewNode(segs.create())
 
-        # FOV cone — two edge rays + arc baseline.
+        # FOV cone - two edge rays + arc baseline.
         segs = LineSegs()
         segs.setColor(0.25, 0.85, 1.0, 1.0)
         segs.setThickness(1.1)
@@ -813,12 +813,12 @@ class Agent:
 class DigitalTwinEnvironment:
     """
     Procedural arena. Owns world bounds, named obstacles, and the
-    sensor beacon set. All geometry is generated at runtime — the
+    sensor beacon set. All geometry is generated at runtime - the
     repository runs from a clean ``pip install panda3d`` with no model
     files on disk.
     """
 
-    # Named operational assets — each contributes a visual obstacle.
+    # Named operational assets - each contributes a visual obstacle.
     ASSET_SPECS: Tuple[
         Tuple[str, Vec3, Vec3, Vec4, float], ...,
     ] = (
@@ -834,7 +834,7 @@ class DigitalTwinEnvironment:
          Vec3(0.42, 0.42, 0.62), Vec4(0.66, 0.52, 0.92, 1), 0.95),
     )
 
-    # Beacon set — semantic digital-twin events the agents can perceive.
+    # Beacon set - semantic digital-twin events the agents can perceive.
     BEACON_SPECS: Tuple[Tuple[str, Vec3, float], ...] = (
         ("thermal-anomaly", Vec3(-5.8, -1.5, 0.38), 0.95),
         ("operator-ping", Vec3(5.6, -0.4, 0.38), 0.75),
@@ -920,7 +920,7 @@ class DigitalTwinEnvironment:
             point = self.bounds.random_point(rng)
             if all(not o.contains_2d(point, clearance) for o in self.obstacles):
                 return point
-        log.warning("waypoint sampler exhausted retries — falling back to origin")
+        log.warning("waypoint sampler exhausted retries - falling back to origin")
         return Vec3(0.0, 0.0, 0.38)
 
     def find_beacon(self, name: Optional[str]) -> Optional[SensorBeacon]:
@@ -950,7 +950,7 @@ class DigitalTwinEnvironment:
 
 
 # ---------------------------------------------------------------------------
-# Director — drives beacon activation over time
+# Director - drives beacon activation over time
 # ---------------------------------------------------------------------------
 class Director:
     """Activates and times out beacons to drive agent behaviour."""
@@ -1000,7 +1000,7 @@ class SimulationApplication(ShowBase):
     """
     Panda3D application host. Owns the scene graph, agents, environment,
     and the master simulation tick. All decision logic lives in each
-    agent's ``Brain`` — this class only orchestrates.
+    agent's ``Brain`` - this class only orchestrates.
     """
 
     AGENT_PALETTE: Tuple[Vec4, ...] = (
@@ -1011,7 +1011,7 @@ class SimulationApplication(ShowBase):
         Vec4(0.95, 0.88, 0.40, 1.0),  # gold
     )
 
-    MAX_FRAME_DT = 0.1   # seconds — safety clamp against scheduler stalls
+    MAX_FRAME_DT = 0.1   # seconds - safety clamp against scheduler stalls
 
     def __init__(self, cfg: SimulationConfig, rng: random.Random):
         super().__init__()
